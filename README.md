@@ -1,59 +1,215 @@
-# Overview
-This repository contains a React frontend, and an Express backend that the frontend connects to.
+# AWS DevOps CI/CD Pipeline
 
-# Objective
-Deploy the frontend and backend to somewhere publicly accessible over the internet. The AWS Free Tier should be more than sufficient to run this project, but you may use any platform and tooling you'd like for your solution.
+A full-stack application deployed on AWS using Jenkins, Docker, ECS, and Terraform with a fully automated CI/CD pipeline.
 
-Fork this repo as a base. You may change any code in this repository to suit the infrastructure you build in this code challenge.
+## Overview
 
-# Submission
-1. A github repo that has been forked from this repo with all your code.
-2. Modify this README file with instructions for:
-* Any tools needed to deploy your infrastructure
-* All the steps needed to repeat your deployment process
-* URLs to the your deployed frontend.
+This repository contains a React frontend and an Express backend. The frontend connects to the backend API which returns a unique ID proving successful communication between services.
 
-# Evaluation
-You will be evaluated on the ease to replicate your infrastructure. This is a combination of quality of the instructions, as well as any scripts to automate the overall setup process.
+## Live URLs
 
-# Setup your environment
-Install nodejs. Binaries and installers can be found on nodejs.org.
-https://nodejs.org/en/download/
+- **Frontend:** http://3.91.189.145
+- **Jenkins Server:** http://54.161.197.90:8080
+- **Backend Load Balancer:** http://tc1-alb-940602008.us-east-1.elb.amazonaws.com:8080
 
-For macOS or Linux, Nodejs can usually be found in your preferred package manager.
-https://nodejs.org/en/download/package-manager/
+## Architecture
 
-Depending on the Linux distribution, the Node Package Manager `npm` may need to be installed separately.
-
-# Running the project
-The backend and the frontend will need to run on separate processes. The backend should be started first.
 ```
+Developer pushes code to GitHub
+        ↓
+Jenkins detects push
+        ↓
+Builds Docker images (frontend + backend)
+        ↓
+Pushes images to Amazon ECR
+        ↓
+Deploys to Amazon ECS
+        ↓
+Application live on internet!
+```
+
+## Technologies Used
+
+- **Jenkins** - CI/CD automation server
+- **Docker** - Container platform
+- **AWS ECS** - Container orchestration (Fargate)
+- **AWS ECR** - Container image registry
+- **AWS ALB** - Application Load Balancer
+- **Terraform** - Infrastructure as Code
+- **React** - Frontend application
+- **Node.js/Express** - Backend API
+
+## Project Structure
+
+```
+aws-devops-pipeline/
+├── frontend/              # React frontend application
+│   ├── Dockerfile
+│   ├── src/
+│   │   ├── App.js
+│   │   └── config.js
+│   └── package.json
+├── backend/               # Express backend API
+│   ├── Dockerfile
+│   ├── index.js
+│   ├── config.js
+│   └── package.json
+├── terraform/             # Infrastructure as Code
+│   ├── main.tf
+│   └── outputs.tf
+├── Jenkinsfile            # CI/CD pipeline definition
+└── README.md
+```
+
+## Tools Required
+
+- AWS CLI
+- Docker
+- Terraform v1.0+
+- Node.js v16+
+- Jenkins
+
+## Deployment Steps
+
+### Step 1 - Clone Repository
+
+```bash
+git clone https://github.com/ABDON72/aws-devops-pipeline
+cd aws-devops-pipeline
+```
+
+### Step 2 - Create ECR Repositories
+
+```bash
+aws ecr create-repository --repository-name frontend --region us-east-1
+aws ecr create-repository --repository-name backend --region us-east-1
+```
+
+### Step 3 - Deploy Infrastructure with Terraform
+
+```bash
+cd terraform
+terraform init
+terraform plan
+terraform apply
+```
+
+This creates:
+- ECS Cluster
+- ECS Task Definitions
+- ECS Services
+- Application Load Balancer
+- Security Groups
+- IAM Roles
+
+### Step 4 - Build and Push Docker Images
+
+```bash
+# Login to ECR
+aws ecr get-login-password --region us-east-1 | docker login --username AWS --password-stdin YOUR-ACCOUNT-ID.dkr.ecr.us-east-1.amazonaws.com
+
+# Build and push backend
+cd backend
+docker build -t backend .
+docker tag backend:latest YOUR-ACCOUNT-ID.dkr.ecr.us-east-1.amazonaws.com/backend:latest
+docker push YOUR-ACCOUNT-ID.dkr.ecr.us-east-1.amazonaws.com/backend:latest
+
+# Build and push frontend
+cd ../frontend
+docker build -t frontend .
+docker tag frontend:latest YOUR-ACCOUNT-ID.dkr.ecr.us-east-1.amazonaws.com/frontend:latest
+docker push YOUR-ACCOUNT-ID.dkr.ecr.us-east-1.amazonaws.com/frontend:latest
+```
+
+### Step 5 - Setup Jenkins Server
+
+1. Launch EC2 instance (t2.medium, Ubuntu 22.04)
+2. Install Java 21:
+```bash
+sudo apt update
+sudo apt install openjdk-21-jdk -y
+```
+3. Download and run Jenkins:
+```bash
+sudo wget -O /opt/jenkins.war https://get.jenkins.io/war-stable/latest/jenkins.war
+sudo java -jar /opt/jenkins.war --httpPort=8080 &
+```
+4. Install Docker:
+```bash
+sudo apt install docker.io -y
+sudo usermod -aG docker ubuntu
+```
+5. Install AWS CLI:
+```bash
+sudo apt install awscli -y
+aws configure
+```
+6. Access Jenkins at http://YOUR-JENKINS-IP:8080
+7. Install plugins: Docker Pipeline, Amazon ECR, Pipeline AWS Steps
+8. Add AWS credentials in Jenkins
+9. Create Pipeline job pointing to this repository
+
+### Step 6 - Run Pipeline
+
+1. Click Build Now in Jenkins
+2. Pipeline automatically:
+   - Pulls code from GitHub
+   - Builds Docker images
+   - Pushes to ECR
+   - Deploys to ECS
+
+## Run Application Locally
+
+### Backend
+```bash
 cd backend
 npm ci
 npm start
 ```
-The backend should response to a GET request on `localhost:8080`.
+Backend runs on http://localhost:8080
 
-With the backend started, the frontend can be started.
-```
+### Frontend
+```bash
 cd frontend
 npm ci
 npm start
 ```
-The frontend can be accessed at `localhost:3000`. If the frontend successfully connects to the backend, a message saying "SUCCESS" followed by a guid should be displayed on the screen.  If the connection failed, an error message will be displayed on the screen.
+Frontend runs on http://localhost:3000
 
-# Configuration
-The frontend has a configuration file at `frontend/src/config.js` that defines the URL to call the backend. This URL is used on `frontend/src/App.js#12`, where the front end will make the GET call during the initial load of the page.
+If frontend successfully connects to backend, a unique GUID will be displayed.
 
-The backend has a configuration file at `backend/config.js` that defines the host that the frontend will be calling from. This URL is used in the `Access-Control-Allow-Origin` CORS header, read in `backend/index.js#14`
+## CI/CD Pipeline Stages
 
-# Optional Extras
-The core requirement for this challenge is to get the provided application up and running for consumption over the public internet. That being said, there are some opportunities in this code challenge to demonstrate your skill sets that are above and beyond the core requirement.
+| Stage | Description |
+|-------|-------------|
+| Checkout | Pull latest code from GitHub |
+| Login to ECR | Authenticate Docker with AWS ECR |
+| Build Images | Build frontend and backend Docker images |
+| Push to ECR | Push images to Amazon ECR |
+| Deploy to ECS | Force new deployment on ECS services |
 
-A few examples of extras for this coding challenge:
-1. Dockerizing the application
-2. Scripts to set up the infrastructure
-3. Providing a pipeline for the application deployment
-4. Running the application in a serverless environment
+## Infrastructure Components
 
-This is not an exhaustive list of extra features that could be added to this code challenge. At the end of the day, this section is for you to demonstrate any skills you want to show that’s not captured in the core requirement.
+| Component | Value |
+|-----------|-------|
+| ECS Cluster | tc1-cluster |
+| Frontend Service | frontend-service |
+| Backend Service | backend-service |
+| Load Balancer | tc1-alb |
+| AWS Region | us-east-1 |
+
+## Jenkins Server Infrastructure
+
+- Instance type: t2.medium
+- OS: Ubuntu 22.04 LTS
+- Java: OpenJDK 21
+- Jenkins: Latest stable WAR
+- Port: 8080
+- Security Group: SSH (22), HTTP (80), Jenkins (8080)
+
+## Author
+
+**Abdon Njunwa**
+- GitHub: https://github.com/ABDON72
+
+
