@@ -1,1 +1,13 @@
+# Terraform
+terraform/.terraform/
+terraform/.terraform.lock.hcl
+terraform/terraform.tfstate
+terraform/terraform.tfstate.backup
+
+# Node modules
 node_modules/
+frontend/node_modules/
+backend/node_modules/
+
+# Environment files
+.envnode_modules/
