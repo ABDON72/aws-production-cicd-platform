@@ -1,4 +1,4 @@
-# AWS DevOps CI/CD Platform 🚀
+# AWS DevOps CI/CD Platform 
 
 ## Executive Summary
 
